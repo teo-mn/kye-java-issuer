@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import io.corexchain.verifyservice.issuer.exceptions.*;
 
 import javax.validation.Valid;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 
 @RestController
@@ -36,9 +34,8 @@ public class IssuerController {
     @PostMapping("issue")
     public ResponseEntity<IssueResponseDTO> issue(@Valid @RequestBody IssueRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
-        Path rootPath = Paths.get(this.rootPath);
-        IssueResponseDTO res = this.service.issue(rootPath.resolve(body.sourcePath).toString(),
-                rootPath.resolve(body.destinationPath).toString(), body.expireDate, body.desc);
+        IssueResponseDTO res = this.service.issue(this.rootPath + body.sourcePath,
+                this.rootPath + body.destinationPath, body.expireDate, body.desc);
         return ResponseEntity.ok(res);
     }
 
