@@ -3,7 +3,6 @@ package io.corexchain.verifyservice.issuer.service;
 import io.corexchain.verify4j.PdfIssuer;
 import io.corexchain.verify4j.exceptions.AlreadyExistsException;
 import io.corexchain.verify4j.exceptions.InvalidCreditAmountException;
-import io.corexchain.verifyservice.issuer.controller.IssuerController;
 import io.corexchain.verifyservice.issuer.exceptions.BadRequestException;
 import io.corexchain.verifyservice.issuer.model.IssueResponseDTO;
 import org.slf4j.Logger;
@@ -16,7 +15,7 @@ import java.util.Date;
 
 @Service
 public class IssuerService {
-    private static final Logger logger = LoggerFactory.getLogger(IssuerController.class);
+    private static final Logger logger = LoggerFactory.getLogger(IssuerService.class);
 
 
     @Value("${verify.service.blockchain.node.url}")

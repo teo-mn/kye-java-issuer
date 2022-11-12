@@ -2,8 +2,10 @@ package io.corexchain.verifyservice.issuer.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
+import io.corexchain.verifyservice.issuer.model.EmployeeCardRevokeDTO;
 import io.corexchain.verifyservice.issuer.model.IssueRequestDTO;
 import io.corexchain.verifyservice.issuer.model.IssueResponseDTO;
+import io.corexchain.verifyservice.issuer.service.EmployeeCardIssuerService;
 import io.corexchain.verifyservice.issuer.service.IssuerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +27,14 @@ public class IssuerController {
     private static final Logger logger = LoggerFactory.getLogger(IssuerController.class);
 
     private IssuerService service;
+    private EmployeeCardIssuerService ecService;
     private RabbitTemplate rabbitTemplate;
 
     @Value("${verify.config.rbmq.queue}")
     private String queue;
+
+    @Value("${verify.config.rbmq.queue.revoke}")
+    private String queueRevoke;
     @Value("${verify.config.rbmq.enabled}")
     private Boolean rbmqEnabled;
 
@@ -36,22 +42,38 @@ public class IssuerController {
     private String rootPath;
 
     public IssuerController(IssuerService service,
+                            EmployeeCardIssuerService ecService,
                             RabbitTemplate rabbitTemplate) {
         this.service = service;
+        this.ecService = ecService;
         this.rabbitTemplate = rabbitTemplate;
     }
 
     @PostMapping
-    public ResponseEntity<IssueResponseDTO> issueJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
+    public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
         } else {
-
+            return ResponseEntity.ok(this.ecService.issueJson(body));
         }
-        return ResponseEntity.ok(new IssueResponseDTO(null));
+        return ResponseEntity.ok("");
+    }
+
+    @PostMapping("revoke-json")
+    public ResponseEntity<String> revokeJson(@Valid @RequestBody EmployeeCardRevokeDTO body) throws Exception {
+        if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
+
+        if (rbmqEnabled) {
+            ObjectMapper mapper = new ObjectMapper();
+            rabbitTemplate.convertAndSend(queueRevoke, mapper.writeValueAsString(body));
+        } else {
+            this.ecService.revokeJson(body);
+            return ResponseEntity.ok("");
+        }
+        return ResponseEntity.ok("");
     }
 
     @PostMapping("issue")
