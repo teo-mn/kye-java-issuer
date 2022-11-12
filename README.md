@@ -7,6 +7,17 @@ mvn -s custom_settings.xml dependency:list
 mvn clean install 
 ```
 
+### EmployeeCardIssuer 
+#### Smart contract address
+`testnet: 0xbf55b2485272292FF0063142fB244CDd0985B2Ee`\
+`mainnet: 0xe961164FA800988DfCBE238f6e937697A620140D`
+#### Node url
+`testnet: https://node-testnet.corexchain.io`\
+`mainnet: https://node.corexchain.io`
+#### Chain id
+`testnet: 3305`\
+`mainnet: 1104`
+
 ### Ашиглах жишээ
 Тест сүлжээ бол:
 `curl --location --request POST 'http://localhost:8081/api/v1/issuer/issue-test' \
