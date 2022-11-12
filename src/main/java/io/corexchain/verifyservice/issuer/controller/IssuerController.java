@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,12 +30,14 @@ public class IssuerController {
 
     @Value("${verify.config.rbmq.queue}")
     private String queue;
+    @Value("${verify.config.rbmq.enabled}")
+    private Boolean rbmqEnabled;
 
-    public IssuerController(IssuerService service, RabbitTemplate rabbitTemplate) {
+    public IssuerController(IssuerService service,
+                            RabbitTemplate rabbitTemplate) {
         this.service = service;
         this.rabbitTemplate = rabbitTemplate;
     }
-
 
     @Value("${verify.service.file.directory}")
     private String rootPath;
@@ -42,9 +45,11 @@ public class IssuerController {
     @PostMapping
     public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
-        ObjectMapper mapper = new ObjectMapper();
 
-        rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
+        if(rbmqEnabled) {
+            ObjectMapper mapper = new ObjectMapper();
+            rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
+        }
         return ResponseEntity.ok("{}");
     }
 
