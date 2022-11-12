@@ -1,5 +1,7 @@
 package io.corexchain.verifyservice.issuer.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
 import io.corexchain.verifyservice.issuer.model.IssueRequestDTO;
 import io.corexchain.verifyservice.issuer.model.IssueResponseDTO;
 import io.corexchain.verifyservice.issuer.service.IssuerService;
@@ -7,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,14 +25,28 @@ public class IssuerController {
     private static final Logger logger = LoggerFactory.getLogger(IssuerController.class);
 
     private IssuerService service;
+    private RabbitTemplate rabbitTemplate;
 
-    public IssuerController(IssuerService service) {
+    @Value("${verify.config.rbmq.queue}")
+    private String queue;
+
+    public IssuerController(IssuerService service, RabbitTemplate rabbitTemplate) {
         this.service = service;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
 
     @Value("${verify.service.file.directory}")
     private String rootPath;
+
+    @PostMapping
+    public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
+        if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
+        ObjectMapper mapper = new ObjectMapper();
+
+        rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
+        return ResponseEntity.ok("{}");
+    }
 
     @PostMapping("issue")
     public ResponseEntity<IssueResponseDTO> issue(@Valid @RequestBody IssueRequestDTO body) throws Exception {

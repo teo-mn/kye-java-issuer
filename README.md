@@ -1,5 +1,12 @@
 # README
 
+## Build
+
+```shell
+mvn -s custom_settings.xml dependency:list
+mvn clean install 
+```
+
 ### Ашиглах жишээ
 Тест сүлжээ бол:
 `curl --location --request POST 'http://localhost:8081/api/v1/issuer/issue-test' \
