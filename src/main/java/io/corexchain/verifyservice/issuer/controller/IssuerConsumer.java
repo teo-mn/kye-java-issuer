@@ -1,7 +1,9 @@
 package io.corexchain.verifyservice.issuer.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.corexchain.verify4j.exceptions.AlreadyExistsException;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardRevokeDTO;
 import io.corexchain.verifyservice.issuer.service.EmployeeCardIssuerService;
@@ -32,17 +34,27 @@ public class IssuerConsumer {
     }
 
     @RabbitListener(queues = "${verify.config.rbmq.queue}")
-    public void readJson(String message) throws JsonProcessingException, SocketTimeoutException, NoSuchAlgorithmException {
-        logger.info(message);
+    public void readJson(String message) {
         ObjectMapper mapper = new ObjectMapper();
-        String result = service.issueJson(mapper.readValue(message, EmployeeCardIssueDTO.class));
-        rabbitTemplate.convertAndSend(responseQueue, result);
+        try {
+            String result = service.issueJson(mapper.readValue(message, EmployeeCardIssueDTO.class));
+            rabbitTemplate.convertAndSend(responseQueue, result);
+        } catch (AlreadyExistsException e) {
+            rabbitTemplate.convertAndSend(responseQueue, "{'error': 'Hash is already in Blockchain!', 'data':'"+message+"'}");
+        } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException e) {
+            logger.error(message, e);
+        }
     }
 
     @RabbitListener(queues = "${verify.config.rbmq.queue.revoke}")
-    public void revokeJson(String message) throws JsonProcessingException, SocketTimeoutException, NoSuchAlgorithmException {
+    public void revokeJson(String message) {
         logger.info(message);
         ObjectMapper mapper = new ObjectMapper();
-        service.revokeJson(mapper.readValue(message, EmployeeCardRevokeDTO.class));
+        try {
+            service.revokeJson(mapper.readValue(message, EmployeeCardRevokeDTO.class));
+        } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException e) {
+            rabbitTemplate.convertAndSend(responseQueue, "{'error': '"+e.getMessage()+"', 'data':'"+message+"'}");
+            throw new RuntimeException(e);
+        }
     }
 }

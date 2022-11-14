@@ -58,17 +58,16 @@ public class EmployeeCardIssuerService {
 
     private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum) {
         try {
-            BigInteger creditBalance = (BigInteger) smartContract.getCredit(this.issuerAddress).send();
+            BigInteger creditBalance = smartContract.getCredit(this.issuerAddress).send();
             if (creditBalance.compareTo(BigInteger.ZERO) == 0) {
                 throw new InvalidCreditAmountException("Not enough credit.");
             } else {
                 CertificationRegistrationWithRole.Certification cert = smartContract.getCertification(hash).send();
                 if (cert.id.compareTo(BigInteger.ZERO) != 0 && !cert.isRevoked) {
-                    //TODO: энэ үед жагсаалтаас хасах хэрэгтэй болов уу
                     throw new AlreadyExistsException("Certification hash already existed in the smart contract.");
                 } else {
                     TransactionReceipt tr = smartContract.addCertification(hash,
-                            new ArrayList<String>(Collections.singleton(childHash)), certNum, BigInteger.ZERO, "v1.0-java", "").send();
+                            new ArrayList<>(Collections.singleton(childHash)), certNum, BigInteger.ZERO, "v1.0-java", "").send();
                     if (!tr.isStatusOK()) {
                         throw new BlockchainNodeException("Error occurred on blockchain.");
                     } else {
@@ -84,7 +83,7 @@ public class EmployeeCardIssuerService {
         } catch (InvalidCreditAmountException | BlockchainNodeException | AlreadyExistsException var15) {
             throw var15;
         } catch (Exception var16) {
-            System.out.println(var16);
+            logger.error(var16.getMessage(), var16);
             throw new BlockchainNodeException(var16.getMessage());
         }
     }
@@ -93,9 +92,7 @@ public class EmployeeCardIssuerService {
         String jsonStr = JsonUtils.jsonMapToString(data.toMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         CertificationRegistrationWithRole smartContract = this.getContractInstance();
-
         this.revokeUtil(smartContract, hash, data.revokerName);
-
     }
 
     private void revokeUtil(CertificationRegistrationWithRole smartContract, String certNum, String revokerName) {
@@ -107,13 +104,10 @@ public class EmployeeCardIssuerService {
                 // Утас болон РД-аар child hash үүсгэсэн байгаа тул олдох ёстой
                 CertificationRegistrationWithRole.Certification cert = smartContract.getCertification(certNum).send();
                 if (cert.id.compareTo(BigInteger.ZERO) == 0) {
-                    // TODO remove from queue
                     throw new NotFoundException();
                 }
                 if (cert.isRevoked) {
-                    // TODO remove from queue
                     return;
-//                    throw new AlreadyExistsException();
                 }
 
                 TransactionReceipt tr = smartContract.revoke(cert.hash, revokerName).send();
@@ -125,7 +119,7 @@ public class EmployeeCardIssuerService {
         } catch (InvalidCreditAmountException | NotFoundException | AlreadyExistsException var15) {
             throw var15;
         } catch (Exception var16) {
-            System.out.println(var16);
+            logger.error(var16.getMessage(), var16);
             throw new BlockchainNodeException(var16.getMessage());
         }
     }

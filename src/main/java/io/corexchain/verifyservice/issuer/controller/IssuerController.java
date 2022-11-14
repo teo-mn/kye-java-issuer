@@ -56,10 +56,10 @@ public class IssuerController {
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
+            return ResponseEntity.ok("{}");
         } else {
             return ResponseEntity.ok(this.ecService.issueJson(body));
         }
-        return ResponseEntity.ok("");
     }
 
     @PostMapping("revoke-json")
