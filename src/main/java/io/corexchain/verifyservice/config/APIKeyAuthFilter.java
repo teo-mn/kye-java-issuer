@@ -1,4 +1,4 @@
-package io.corexchain.verifyservice.issuer;
+package io.corexchain.verifyservice.config;
 
 import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter;
 

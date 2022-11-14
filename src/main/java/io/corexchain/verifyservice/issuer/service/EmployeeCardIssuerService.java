@@ -17,6 +17,7 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.gas.StaticGasProvider;
 
+import javax.validation.constraints.NotEmpty;
 import java.io.InterruptedIOException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
@@ -95,7 +96,7 @@ public class EmployeeCardIssuerService {
         this.revokeUtil(smartContract, hash, data.revokerName);
     }
 
-    private void revokeUtil(CertificationRegistrationWithRole smartContract, String certNum, String revokerName) {
+    private void revokeUtil(CertificationRegistrationWithRole smartContract, String certNum, @NotEmpty String revokerName) {
         try {
             BigInteger creditBalance = (BigInteger) smartContract.getCredit(this.issuerAddress).send();
             if (creditBalance.compareTo(BigInteger.ZERO) == 0) {
