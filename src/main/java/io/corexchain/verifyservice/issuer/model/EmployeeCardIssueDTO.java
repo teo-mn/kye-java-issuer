@@ -3,22 +3,26 @@ package io.corexchain.verifyservice.issuer.model;
 import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.Pattern;
 import java.util.HashMap;
-import java.util.Map;
 
 public class EmployeeCardIssueDTO extends EmployeeCardDTO {
     @NotEmpty(message = "[fn] First name should not be empty")
+    @Length(min = 2, max = 120)
     public String fn;
     @NotEmpty(message = "[ln] Last name should not be empty")
+    @Length(min = 2, max = 120)
     public String ln;
     @NotEmpty(message = "[oid] Organization should not be empty")
+    @Length(min = 2, max = 50)
     public String oid;
     @NotEmpty(message = "[eid] Employee ID should not be empty")
+    @Length(min = 2, max = 50)
     public String eid;
     @NotEmpty(message = "[im] Image url should not be empty")
+    @Length(min = 2, max = 1000)
     public String im;
     @NotEmpty(message = "[po] Position should not be empty")
+    @Length(min = 2, max = 25)
     public String po;
     //
     public String requestID;

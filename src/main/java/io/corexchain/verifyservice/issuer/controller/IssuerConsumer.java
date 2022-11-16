@@ -55,7 +55,7 @@ public class IssuerConsumer {
             }
         } catch (AlreadyExistsException e) {
             logger.error(e.getMessage(), e);
-            rabbitTemplate.convertAndSend(responseQueue, "{'error': 'Hash is already in Blockchain!', 'data':'" + message + "'}");
+            rabbitTemplate.convertAndSend(responseQueue, "{'error': 'Certification hash already existed in the smart contract.', 'data':'" + message + "'}");
         } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException e) {
             logger.error(e.getMessage(), e);
             rabbitTemplate.convertAndSend(responseQueue, "{'error': '" + e.getMessage() + "', 'data':'" + message + "'}");

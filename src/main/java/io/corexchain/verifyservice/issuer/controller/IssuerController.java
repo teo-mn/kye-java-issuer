@@ -21,7 +21,6 @@ import java.util.Objects;
 @RestController
 @RequestMapping("api/v1/issuer")
 public class IssuerController {
-    private static final Logger logger = LoggerFactory.getLogger(IssuerController.class);
 
     private IssuerService service;
     private EmployeeCardIssuerService ecService;
@@ -34,6 +33,9 @@ public class IssuerController {
 
     @Value("${verify.service.file.directory}")
     private String rootPath;
+
+    @Value("${verify.service.blockchain.contract.address}")
+    private String smartContractAddress;
 
     public IssuerController(IssuerService service,
                             EmployeeCardIssuerService ecService,
@@ -51,7 +53,7 @@ public class IssuerController {
             ObjectMapper mapper = new ObjectMapper();
             body.action = EmployeeCardAction.ADD;
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
-            return ResponseEntity.ok("{}");
+            return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
             return ResponseEntity.ok(this.ecService.issueJson(body));
         }
@@ -67,7 +69,7 @@ public class IssuerController {
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
             body.action = EmployeeCardAction.ADD;
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
-            return ResponseEntity.ok("{}");
+            return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
             EmployeeCardRevokeDTO revokeDTO = new EmployeeCardRevokeDTO();
             revokeDTO.pn = body.pn;
@@ -79,7 +81,7 @@ public class IssuerController {
         }
     }
 
-    @PostMapping("revoke")
+    @DeleteMapping()
     public ResponseEntity<String> revokeJson(@Valid @RequestBody EmployeeCardRevokeDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
@@ -89,7 +91,7 @@ public class IssuerController {
         } else {
             this.ecService.revokeJson(body);
         }
-        return ResponseEntity.ok("{}");
+        return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
     }
 
     @PostMapping("issue")

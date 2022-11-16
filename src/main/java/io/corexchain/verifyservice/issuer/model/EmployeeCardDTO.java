@@ -8,6 +8,7 @@ import java.util.HashMap;
 public class EmployeeCardDTO {
 
     @NotEmpty(message = "[rn] Citizen registration number should not be empty")
+    @Length(min = 8, max = 20)
     public String rn;
     @NotEmpty(message = "[pn] Phone number should not be empty")
     @Length(min = 8, max = 20)

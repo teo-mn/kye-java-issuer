@@ -3,13 +3,17 @@ package io.corexchain.verifyservice.issuer.service;
 import io.corexchain.verify4j.JsonUtils;
 import io.corexchain.verify4j.chainpoint.MerkleTree;
 import io.corexchain.verify4j.exceptions.*;
+import io.corexchain.verifyservice.issuer.exceptions.NotValidException;
+import io.corexchain.verifyservice.issuer.model.EmployeeCardDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardRevokeDTO;
+import io.corexchain.verifyservice.issuer.model.EmployeeVerifyDTO;
 import io.nbs.contracts.CertificationRegistrationWithRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -18,6 +22,7 @@ import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.gas.StaticGasProvider;
 
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.io.InterruptedIOException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
@@ -50,7 +55,7 @@ public class EmployeeCardIssuerService {
         String jsonPhoneRegnumStr = JsonUtils.jsonMapToString(data.getPhoneRegnumMap());
         String childHash = MerkleTree.calcHashFromStr(jsonPhoneRegnumStr, "SHA-256");
 
-        CertificationRegistrationWithRole smartContract = this.getContractInstance();
+        CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
 
         this.issueUtil(smartContract, hash, childHash, childHash);
         jsonMap.put("sc", this.contractAddress);
@@ -81,18 +86,18 @@ public class EmployeeCardIssuerService {
                     }
                 }
             }
-        } catch (InvalidCreditAmountException | BlockchainNodeException | AlreadyExistsException var15) {
-            throw var15;
-        } catch (Exception var16) {
-            logger.error(var16.getMessage(), var16);
-            throw new BlockchainNodeException(var16.getMessage());
+        } catch (InvalidCreditAmountException | BlockchainNodeException | AlreadyExistsException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new BlockchainNodeException(e.getMessage());
         }
     }
 
     public void revokeJson(EmployeeCardRevokeDTO data) throws SocketTimeoutException, NoSuchAlgorithmException {
         String jsonStr = JsonUtils.jsonMapToString(data.toMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
-        CertificationRegistrationWithRole smartContract = this.getContractInstance();
+        CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
         this.revokeUtil(smartContract, hash, data.revokerName);
     }
 
@@ -105,7 +110,7 @@ public class EmployeeCardIssuerService {
                 // Утас болон РД-аар child hash үүсгэсэн байгаа тул олдох ёстой
                 CertificationRegistrationWithRole.Certification cert = smartContract.getCertification(certNum).send();
                 if (cert.id.compareTo(BigInteger.ZERO) == 0) {
-                    throw new NotFoundException();
+                    throw new NotFoundException("The HASH value is not found in blockchain.");
                 }
                 if (cert.isRevoked) {
                     return;
@@ -117,21 +122,41 @@ public class EmployeeCardIssuerService {
                 }
 
             }
-        } catch (InvalidCreditAmountException | NotFoundException | AlreadyExistsException var15) {
-            throw var15;
-        } catch (Exception var16) {
-            logger.error(var16.getMessage(), var16);
-            throw new BlockchainNodeException(var16.getMessage());
+        } catch (InvalidCreditAmountException | NotFoundException | AlreadyExistsException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new BlockchainNodeException(e.getMessage());
         }
     }
 
-    private CertificationRegistrationWithRole getContractInstance() throws SocketTimeoutException {
+    public boolean isValid(EmployeeCardDTO card, String smartContractAddress) throws SocketTimeoutException, NoSuchAlgorithmException {
+        if (!StringUtils.hasLength(smartContractAddress))
+            smartContractAddress = this.contractAddress;
+        CertificationRegistrationWithRole smartContract = this.getContractInstance(smartContractAddress);
+        String jsonStr = JsonUtils.jsonMapToString(card.toMap());
+        String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
+        CertificationRegistrationWithRole.Certification cert;
+        try {
+            // Утас болон РД-аар child hash үүсгэсэн байгаа тул олдох ёстой
+            cert = smartContract.getCertification(hash).send();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new BlockchainNodeException(e.getMessage());
+        }
+        if (cert.id.compareTo(BigInteger.ZERO) == 0)
+            throw new NotFoundException("The HASH value is not found in blockchain.");
+
+        return !cert.isRevoked;
+    }
+
+    private CertificationRegistrationWithRole getContractInstance(String smartContractAddress) throws SocketTimeoutException {
         Web3j web3j = Web3j.build(new HttpService(this.nodeUrl));
         StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
 
         Credentials wallet = Credentials.create(issuerPk);
         RawTransactionManager transactionManager = new RawTransactionManager(web3j, wallet, this.chainId);
-        CertificationRegistrationWithRole smartContract = CertificationRegistrationWithRole.load(this.contractAddress, web3j, transactionManager, gasProvider);
+        CertificationRegistrationWithRole smartContract = CertificationRegistrationWithRole.load(smartContractAddress, web3j, transactionManager, gasProvider);
 
         try {
             smartContract.getCredit(this.issuerAddress).send();
