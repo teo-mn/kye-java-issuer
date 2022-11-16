@@ -54,7 +54,7 @@ public class IssuerConsumer {
                 service.revokeJson(revokeDTO);
             }
         } catch (AlreadyExistsException e) {
-            logger.error(e.getMessage(), e);
+            logger.error(e.getMessage());
             rabbitTemplate.convertAndSend(responseQueue, "{'error': 'Certification hash already existed in the smart contract.', 'data':'" + message + "'}");
         } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException e) {
             logger.error(e.getMessage(), e);
