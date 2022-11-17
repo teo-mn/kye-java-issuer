@@ -1,0 +1,48 @@
+version: "3"
+
+services:
+
+  notly-interactive-service:
+    image: corexchain/notly-interactive-service
+    ports:
+      - "8080:8081"
+    environment:
+      - ROOT_DIRECTORY=<root_directory>             # Файл хадгалах директорийн зам.
+      - AUTH_TOKEN=<x-api-key>                      # X-API-KEY.
+
+      - RBMQ_ENABLED=<true|false>                   # RabbitMQ ашиглах эсэх. Хэрэв ашиглах бол дараах RBMQ_ эхлэлтэй тохиргоонуудыг хийнэ.
+      - RBMQ_HOST=<host_ip>                         # RabbitMQ ажиллаж буй IP.
+      - RBMQ_PORT=<port>                            # RabbitMQ ажиллаж буй портын дугаар.
+      - RBMQ_USER=<rbmq_username>                   # RabbitMQ хэрэглэгчийн нэр.
+      - RBMQ_PASS=<rbmq_password>                   # RabbitMQ нууц үг.
+      - RBMQ_QUEUE=<topic_name>                     # RabbitMQ рүү мэдээлэл илгээх Queue буюу Topic нэр.
+
+      - NODE_URL=<node_uri>                         # ТЕО блокчэйн node url.
+      - CHAIN_ID=<3305|1104>                        # ТЕО блокчэйн chain id.
+      - CONTRACT_ADDRESS=<sc_addr>                  # KYE ухаалаг гэрээний хаяг. Компани бүрд тус тусдаа хаяг байна.
+      - ISSUER_ADDRESS=<wallet_addr>                # Блокчэйнд мэдээлэл оруулагч компанийн хэтэвчийн хаяг.
+      - ISSUER_PK=<wallet_pk>                       # Блокчэйнд мэдээлэл оруулагч компанийн хэтэвчийн түлхүүр.
+      - ISSUER_NAME=<company_name>                  # Блокчэйнд мэдээлэл оруулагч компанийн нэр.
+
+      - TESTNET_NODE_URL=<testnet_node_uri>         # TEO блокчэйн тестнет node url.
+      - TESTNET_CONTRACT_ADDRESS=<testnet_sc_addr>  # Тестнет дээрх ухаалаг гэрээний хаяг.
+      - TESTNET_ISSUER_ADDRESS=                     # Тестнет дээрх мэдээлэл оруулагч компанийн хэтэвчийн хаяг.
+      - TESTNET_ISSUER_PK=                          # Тестнет дээрх мэдээлэл оруулагч компанийн хэвэтчийн түлхүүр.
+    volumes:
+      # host_machine_directory дээр үндсэн системийн файл хадгалах директорийн замыг оруулна.
+      # root_directory дээр ROOT_DIRECTORY дээр оруулсан директорийн замыг оруулна.
+      - /<host_machine_directory>:<root_directory>
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=<rbmq_username>
+      - RABBITMQ_DEFAULT_PASS=<rbmq_password>
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq_data:
