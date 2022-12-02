@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -32,6 +33,6 @@ public class VerifierController {
     @PostMapping
     public ResponseEntity<Boolean> verify(@Valid @RequestBody EmployeeVerifyDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
-        return ResponseEntity.ok(this.ecService.isValid(body, body.sc));
+        return ResponseEntity.ok(this.ecService.isValid(body, StringUtils.hasText(body.sc) ? body.sc: smartContractAddress));
     }
 }

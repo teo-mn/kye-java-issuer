@@ -2,8 +2,8 @@ version: "3"
 
 services:
 
-  notly-interactive-service:
-    image: corexchain/notly-interactive-service
+  notly-issuer-service:
+    image: corexchain/notly-issuer-service
     ports:
       - "8080:8081"
     environment:

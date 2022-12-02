@@ -8,6 +8,7 @@ import io.corexchain.verifyservice.issuer.model.EmployeeCardDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeCardRevokeDTO;
 import io.corexchain.verifyservice.issuer.model.EmployeeVerifyDTO;
+import io.nbs.contracts.CertificationRegistration;
 import io.nbs.contracts.CertificationRegistrationWithRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.RawTransactionManager;
+import org.web3j.tx.ReadonlyTransactionManager;
 import org.web3j.tx.gas.StaticGasProvider;
 
 import javax.validation.constraints.NotEmpty;
@@ -133,7 +135,7 @@ public class EmployeeCardIssuerService {
     public boolean isValid(EmployeeCardDTO card, String smartContractAddress) throws SocketTimeoutException, NoSuchAlgorithmException {
         if (!StringUtils.hasLength(smartContractAddress))
             smartContractAddress = this.contractAddress;
-        CertificationRegistrationWithRole smartContract = this.getContractInstance(smartContractAddress);
+        CertificationRegistrationWithRole smartContract = this.getContractReadOnlyInstance(smartContractAddress);
         String jsonStr = JsonUtils.jsonMapToString(card.toMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         CertificationRegistrationWithRole.Certification cert;
@@ -161,12 +163,20 @@ public class EmployeeCardIssuerService {
         try {
             smartContract.getCredit(this.issuerAddress).send();
             return smartContract;
-        } catch (SocketTimeoutException var6) {
-            throw var6;
-        } catch (InterruptedIOException var7) {
-            throw new SocketTimeoutException(var7.getMessage());
-        } catch (Exception var8) {
+        } catch (SocketTimeoutException e) {
+            throw e;
+        } catch (InterruptedIOException e) {
+            throw new SocketTimeoutException(e.getMessage());
+        } catch (Exception e) {
             throw new InvalidSmartContractException();
         }
+    }
+
+    private CertificationRegistrationWithRole getContractReadOnlyInstance(String smartContractAddress) throws SocketTimeoutException {
+        Web3j web3j = Web3j.build(new HttpService(this.nodeUrl));
+        StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+        ReadonlyTransactionManager transactionManager = new ReadonlyTransactionManager(web3j, smartContractAddress);
+        CertificationRegistrationWithRole smartContract = CertificationRegistrationWithRole.load(smartContractAddress, web3j, transactionManager, gasProvider);
+        return smartContract;
     }
 }

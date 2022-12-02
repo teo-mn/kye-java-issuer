@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+
+  notly-issuer-service:
+    image: corexchain/notly-issuer-service
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_URL=https://node-testnet.corexchain.io                       # ТЕО блокчэйн node url.
+      - CHAIN_ID=1104                                                     # ТЕО блокчэйн chain id. <3305|1104>
+      - CONTRACT_ADDRESS=0xbf55b2485272292FF0063142fB244CDd0985B2Ee       # KYE ухаалаг гэрээний хаяг. Компани бүрд тус тусдаа хаяг байна.
