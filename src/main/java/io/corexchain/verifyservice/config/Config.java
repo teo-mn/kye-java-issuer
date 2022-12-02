@@ -42,9 +42,12 @@ public class Config extends WebSecurityConfigurerAdapter {
         });
         httpSecurity.
                 antMatcher("/api/**").
-                csrf().disable().
-                sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).
-                and().addFilter(filter).authorizeRequests().anyRequest().authenticated();
+                csrf().disable().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and().addFilter(filter)
+                .authorizeRequests()
+                .antMatchers("/api/v1/verifier**")
+                .permitAll()
+                .anyRequest().authenticated();
     }
 
 
