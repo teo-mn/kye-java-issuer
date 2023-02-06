@@ -46,7 +46,7 @@ public class IssuerController {
     }
 
     @PostMapping
-    public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
+    public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {
@@ -60,7 +60,7 @@ public class IssuerController {
     }
 
     @PutMapping
-    public ResponseEntity<String> updateJson(@Valid @RequestBody EmployeeCardIssueDTO body) throws Exception {
+    public ResponseEntity<String> updateJson(@Valid @RequestBody EmployeeCardIssueRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {
@@ -72,17 +72,22 @@ public class IssuerController {
             return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
             EmployeeCardRevokeDTO revokeDTO = new EmployeeCardRevokeDTO();
-            revokeDTO.pn = body.pn;
-            revokeDTO.rn = body.rn;
-            revokeDTO.revokerName = body.oid;
-            this.ecService.revokeJson(revokeDTO);
+            revokeDTO.pn = body.data.pn;
+            revokeDTO.rn = body.data.rn;
+            revokeDTO.eid = body.data.eid;
+            revokeDTO.revokerName = body.data.oid;
+            EmployeeCardRevokeRequestDTO request = new EmployeeCardRevokeRequestDTO();
+            request.data = revokeDTO;
+            request.requestId = body.requestId;
+            request.action = EmployeeCardAction.REVOKE;
+            this.ecService.revokeJson(request);
             String qr = this.ecService.issueJson(body);
             return ResponseEntity.ok(qr);
         }
     }
 
     @DeleteMapping()
-    public ResponseEntity<String> revokeJson(@Valid @RequestBody EmployeeCardRevokeDTO body) throws Exception {
+    public ResponseEntity<String> revokeJson(@Valid @RequestBody EmployeeCardRevokeRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {

@@ -1,13 +1,13 @@
 package io.corexchain.verifyservice.issuer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.corexchain.verify4j.JsonUtils;
 import io.corexchain.verify4j.chainpoint.MerkleTree;
 import io.corexchain.verify4j.exceptions.*;
 import io.corexchain.verifyservice.issuer.exceptions.NotValidException;
-import io.corexchain.verifyservice.issuer.model.EmployeeCardDTO;
-import io.corexchain.verifyservice.issuer.model.EmployeeCardIssueDTO;
-import io.corexchain.verifyservice.issuer.model.EmployeeCardRevokeDTO;
-import io.corexchain.verifyservice.issuer.model.EmployeeVerifyDTO;
+import io.corexchain.verifyservice.issuer.model.*;
 import io.nbs.contracts.CertificationRegistration;
 import io.nbs.contracts.CertificationRegistrationWithRole;
 import org.slf4j.Logger;
@@ -31,6 +31,7 @@ import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -50,18 +51,25 @@ public class EmployeeCardIssuerService {
     @Value("${verify.service.blockchain.node.chainId}")
     private Integer chainId;
 
-    public String issueJson(EmployeeCardIssueDTO data) throws NoSuchAlgorithmException, SocketTimeoutException {
+    public String issueJson(EmployeeCardIssueRequestDTO request) throws NoSuchAlgorithmException, SocketTimeoutException {
+        EmployeeCardIssueDTO data = request.data;
         Map<String, String> jsonMap = data.toMap();
         String jsonStr = JsonUtils.jsonMapToString(jsonMap);
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         String jsonPhoneRegnumStr = JsonUtils.jsonMapToString(data.getPhoneRegnumMap());
         String childHash = MerkleTree.calcHashFromStr(jsonPhoneRegnumStr, "SHA-256");
+        String certNumJsonStr = JsonUtils.jsonMapToString(data.getCertNumMap());
+        String certNumHash = MerkleTree.calcHashFromStr(certNumJsonStr, "SHA-256");
 
         CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
 
-        this.issueUtil(smartContract, hash, childHash, childHash);
+        this.issueUtil(smartContract, hash, childHash, certNumHash);
         jsonMap.put("sc", this.contractAddress);
-        return JsonUtils.jsonMapToString(jsonMap);
+        Map<String, Object> result = new HashMap<>();
+        result.put("requestId", request.requestId);
+        result.put("action", request.action);
+        result.put("data", jsonMap);
+        return JsonUtils.jsonMapToString(result);
     }
 
     private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum) {
@@ -96,8 +104,9 @@ public class EmployeeCardIssuerService {
         }
     }
 
-    public void revokeJson(EmployeeCardRevokeDTO data) throws SocketTimeoutException, NoSuchAlgorithmException {
-        String jsonStr = JsonUtils.jsonMapToString(data.toMap());
+    public void revokeJson(EmployeeCardRevokeRequestDTO request) throws SocketTimeoutException, NoSuchAlgorithmException {
+        EmployeeCardRevokeDTO data = request.data;
+        String jsonStr = JsonUtils.jsonMapToString(data.getCertNumMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
         this.revokeUtil(smartContract, hash, data.revokerName);
@@ -136,7 +145,7 @@ public class EmployeeCardIssuerService {
         if (!StringUtils.hasLength(smartContractAddress))
             smartContractAddress = this.contractAddress;
         CertificationRegistrationWithRole smartContract = this.getContractReadOnlyInstance(smartContractAddress);
-        String jsonStr = JsonUtils.jsonMapToString(card.toMap());
+        String jsonStr = JsonUtils.jsonMapToString(card.getPhoneRegnumMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         CertificationRegistrationWithRole.Certification cert;
         try {
@@ -157,7 +166,7 @@ public class EmployeeCardIssuerService {
         StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
 
         Credentials wallet = Credentials.create(issuerPk);
-        RawTransactionManager transactionManager = new RawTransactionManager(web3j, wallet, this.chainId);
+        RawTransactionManager transactionManager = new RawTransactionManager(web3j, wallet, this.chainId, 100, 200);
         CertificationRegistrationWithRole smartContract = CertificationRegistrationWithRole.load(smartContractAddress, web3j, transactionManager, gasProvider);
 
         try {

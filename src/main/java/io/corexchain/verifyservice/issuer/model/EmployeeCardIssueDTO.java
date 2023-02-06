@@ -15,17 +15,12 @@ public class EmployeeCardIssueDTO extends EmployeeCardDTO {
     @NotEmpty(message = "[oid] Organization should not be empty")
     @Length(min = 2, max = 50)
     public String oid;
-    @NotEmpty(message = "[eid] Employee ID should not be empty")
-    @Length(min = 2, max = 50)
-    public String eid;
     @NotEmpty(message = "[im] Image url should not be empty")
     @Length(min = 2, max = 1000)
     public String im;
     @NotEmpty(message = "[po] Position should not be empty")
     @Length(min = 2, max = 25)
     public String po;
-    //
-    public String requestID;
 
     public HashMap<String, String> toMap() {
         HashMap<String, String> result = new HashMap<>();
