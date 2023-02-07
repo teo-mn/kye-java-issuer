@@ -3,7 +3,7 @@ version: "3"
 services:
 
   notly-issuer-service:
-    image: corexchain/notly-issuer-service
+    image: corexchain/kye-java-issuer
     ports:
       - "8080:8081"
     environment:
