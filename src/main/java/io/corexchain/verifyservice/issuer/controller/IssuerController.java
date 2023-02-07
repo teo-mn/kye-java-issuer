@@ -48,10 +48,11 @@ public class IssuerController {
     @PostMapping
     public ResponseEntity<String> issueJson(@Valid @RequestBody EmployeeCardIssueRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
+        if (Objects.isNull(body.getData())) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
-            body.action = EmployeeCardAction.ADD;
+            body.setAction(EmployeeCardAction.ADD);
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
             return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
@@ -65,21 +66,20 @@ public class IssuerController {
 
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
-            body.action = EmployeeCardAction.REVOKE;
+            body.setAction(EmployeeCardAction.REVOKE);
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
-            body.action = EmployeeCardAction.ADD;
+            body.setAction(EmployeeCardAction.ADD);
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
             return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
             EmployeeCardRevokeDTO revokeDTO = new EmployeeCardRevokeDTO();
-            revokeDTO.pn = body.data.pn;
-            revokeDTO.rn = body.data.rn;
-            revokeDTO.eid = body.data.eid;
-            revokeDTO.revokerName = body.data.oid;
+            revokeDTO.setPn(body.getData().getPn());
+            revokeDTO.setRn(body.getData().getRn());
+            revokeDTO.setEid(body.getData().getEid());
             EmployeeCardRevokeRequestDTO request = new EmployeeCardRevokeRequestDTO();
-            request.data = revokeDTO;
-            request.requestId = body.requestId;
-            request.action = EmployeeCardAction.REVOKE;
+            request.setData(revokeDTO);
+            request.setRequestId(body.getRequestId());
+            request.setAction(EmployeeCardAction.REVOKE);
             this.ecService.revokeJson(request);
             String qr = this.ecService.issueJson(body);
             return ResponseEntity.ok(qr);
@@ -92,6 +92,7 @@ public class IssuerController {
 
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
+            body.setAction(EmployeeCardAction.REVOKE);
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
         } else {
             this.ecService.revokeJson(body);

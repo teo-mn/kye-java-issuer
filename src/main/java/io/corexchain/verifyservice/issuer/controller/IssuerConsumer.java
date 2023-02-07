@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.corexchain.verify4j.exceptions.AlreadyExistsException;
+import io.corexchain.verify4j.exceptions.BlockchainNodeException;
 import io.corexchain.verifyservice.issuer.model.*;
 import io.corexchain.verifyservice.issuer.service.EmployeeCardIssuerService;
 import org.slf4j.Logger;
@@ -41,21 +42,22 @@ public class IssuerConsumer {
         EmployeeCardRequestDTO request = null;
         try {
             request = mapper.readValue(message, EmployeeCardRequestDTO.class);
-            if (EmployeeCardAction.ADD.equals(request.action)) {
+            if (EmployeeCardAction.ADD.equals(request.getAction())) {
                 String result = service.issueJson(mapper.readValue(message, EmployeeCardIssueRequestDTO.class));
                 rabbitTemplate.convertAndSend(responseQueue, result);
-            } else if (EmployeeCardAction.REVOKE.equals(request.action)) {
+            } else if (EmployeeCardAction.REVOKE.equals(request.getAction())) {
                 EmployeeCardRevokeRequestDTO revokeDTO = mapper.readValue(message, EmployeeCardRevokeRequestDTO.class);
-                if(Objects.isNull(revokeDTO.data.revokerName))
-                    revokeDTO.data.revokerName = "system";
-                service.revokeJson(revokeDTO);
+                if(Objects.isNull(revokeDTO.getData().getRevokerName()))
+                    revokeDTO.getData().setRevokerName("system");
+                String result = service.revokeJson(revokeDTO);
+                rabbitTemplate.convertAndSend(responseQueue, result);
             }
         } catch (AlreadyExistsException e) {
             logger.error(e.getMessage());
-            rabbitTemplate.convertAndSend(responseQueue, "{'error': 'Certification hash already existed in the smart contract.', 'data':'" + message + "'}");
-        } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException e) {
+            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"Certification hash already existed in the smart contract.\", \"data\":\"" + message + "\"}");
+        } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException | BlockchainNodeException e) {
             logger.error(e.getMessage(), e);
-            rabbitTemplate.convertAndSend(responseQueue, "{'error': '" + e.getMessage() + "', 'data':'" + message + "'}");
+            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + e.getMessage() + "\", \"data\":\"" + message + "\"}");
         }
     }
 }

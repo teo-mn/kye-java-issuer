@@ -1,14 +1,9 @@
 package io.corexchain.verifyservice.issuer.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.corexchain.verify4j.JsonUtils;
 import io.corexchain.verify4j.chainpoint.MerkleTree;
 import io.corexchain.verify4j.exceptions.*;
-import io.corexchain.verifyservice.issuer.exceptions.NotValidException;
 import io.corexchain.verifyservice.issuer.model.*;
-import io.nbs.contracts.CertificationRegistration;
 import io.nbs.contracts.CertificationRegistrationWithRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +19,6 @@ import org.web3j.tx.ReadonlyTransactionManager;
 import org.web3j.tx.gas.StaticGasProvider;
 
 import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
 import java.io.InterruptedIOException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
@@ -52,7 +46,7 @@ public class EmployeeCardIssuerService {
     private Integer chainId;
 
     public String issueJson(EmployeeCardIssueRequestDTO request) throws NoSuchAlgorithmException, SocketTimeoutException {
-        EmployeeCardIssueDTO data = request.data;
+        EmployeeCardIssueDTO data = request.getData();
         Map<String, String> jsonMap = data.toMap();
         String jsonStr = JsonUtils.jsonMapToString(jsonMap);
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
@@ -65,11 +59,13 @@ public class EmployeeCardIssuerService {
 
         this.issueUtil(smartContract, hash, childHash, certNumHash);
         jsonMap.put("sc", this.contractAddress);
-        Map<String, Object> result = new HashMap<>();
-        result.put("requestId", request.requestId);
-        result.put("action", request.action);
-        result.put("data", jsonMap);
-        return JsonUtils.jsonMapToString(result);
+        String res = "";
+        res += "{";
+        res += "\"requestId\": " + "\"" + request.getRequestId() + "\", ";
+        res += "\"action\": " + "\"" + request.getAction() + "\", ";
+        res += "\"data\": "  + JsonUtils.jsonMapToString(jsonMap);
+        res += "}";
+        return res;
     }
 
     private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum) {
@@ -82,8 +78,22 @@ public class EmployeeCardIssuerService {
                 if (cert.id.compareTo(BigInteger.ZERO) != 0 && !cert.isRevoked) {
                     throw new AlreadyExistsException("Certification hash already existed in the smart contract.");
                 } else {
-                    TransactionReceipt tr = smartContract.addCertification(hash,
-                            new ArrayList<>(Collections.singleton(childHash)), certNum, BigInteger.ZERO, "v1.0-java", "").send();
+
+                    // check child hash
+                    CertificationRegistrationWithRole.Certification cert2 = smartContract.getCertificationByCertNum(certNum).send();
+                    if (!cert2.isRevoked && cert2.id.compareTo(BigInteger.ZERO) != 0) {
+                        throw new AlreadyExistsException("Certification hash already existed in the smart contract.");
+                    }
+                    cert2 = smartContract.getCertification(childHash).send();
+                    TransactionReceipt tr;
+                    if (!cert2.isRevoked && cert2.id.compareTo(BigInteger.ZERO) != 0) {
+                        tr = smartContract.addCertification(hash,
+                                certNum, BigInteger.ZERO, "v1.0-java", "").send();
+                    } else {
+                        tr = smartContract.addCertification(hash,
+                                new ArrayList<>(Collections.singleton(childHash)), certNum, BigInteger.ZERO, "v1.0-java", "").send();
+                    }
+
                     if (!tr.isStatusOK()) {
                         throw new BlockchainNodeException("Error occurred on blockchain.");
                     } else {
@@ -104,12 +114,20 @@ public class EmployeeCardIssuerService {
         }
     }
 
-    public void revokeJson(EmployeeCardRevokeRequestDTO request) throws SocketTimeoutException, NoSuchAlgorithmException {
-        EmployeeCardRevokeDTO data = request.data;
+    public String revokeJson(EmployeeCardRevokeRequestDTO request) throws SocketTimeoutException, NoSuchAlgorithmException {
+        EmployeeCardRevokeDTO data = request.getData();
         String jsonStr = JsonUtils.jsonMapToString(data.getCertNumMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
-        this.revokeUtil(smartContract, hash, data.revokerName);
+        this.revokeUtil(smartContract, hash, data.getRevokerName());
+
+        String res = "";
+        res += "{";
+        res += "\"requestId\": " + "\"" + request.getRequestId() + "\", ";
+        res += "\"action\": " + "\"" + request.getAction() + "\", ";
+        res += "\"data\": "  + jsonStr;
+        res += "}";
+        return res;
     }
 
     private void revokeUtil(CertificationRegistrationWithRole smartContract, String certNum, @NotEmpty String revokerName) {
@@ -119,7 +137,7 @@ public class EmployeeCardIssuerService {
                 throw new InvalidCreditAmountException("Not enough credit.");
             } else {
                 // Утас болон РД-аар child hash үүсгэсэн байгаа тул олдох ёстой
-                CertificationRegistrationWithRole.Certification cert = smartContract.getCertification(certNum).send();
+                CertificationRegistrationWithRole.Certification cert = smartContract.getCertificationByCertNum(certNum).send();
                 if (cert.id.compareTo(BigInteger.ZERO) == 0) {
                     throw new NotFoundException("The HASH value is not found in blockchain.");
                 }
@@ -181,7 +199,7 @@ public class EmployeeCardIssuerService {
         }
     }
 
-    private CertificationRegistrationWithRole getContractReadOnlyInstance(String smartContractAddress) throws SocketTimeoutException {
+    private CertificationRegistrationWithRole getContractReadOnlyInstance(String smartContractAddress) {
         Web3j web3j = Web3j.build(new HttpService(this.nodeUrl));
         StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
         ReadonlyTransactionManager transactionManager = new ReadonlyTransactionManager(web3j, smartContractAddress);

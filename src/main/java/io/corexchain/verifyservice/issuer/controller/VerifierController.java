@@ -33,6 +33,6 @@ public class VerifierController {
     @PostMapping
     public ResponseEntity<Boolean> verify(@Valid @RequestBody EmployeeVerifyDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
-        return ResponseEntity.ok(this.ecService.isValid(body, StringUtils.hasText(body.sc) ? body.sc: smartContractAddress));
+        return ResponseEntity.ok(this.ecService.isValid(body, StringUtils.hasText(body.getSc()) ? body.getSc(): smartContractAddress));
     }
 }

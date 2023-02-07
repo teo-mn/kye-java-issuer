@@ -1,9 +1,14 @@
 package io.corexchain.verifyservice.issuer.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import javax.validation.constraints.NotEmpty;
 
+@Getter
+@Setter
 public class EmployeeCardRequestDTO {
-    public EmployeeCardAction action;
+    protected EmployeeCardAction action;
     @NotEmpty(message = "[requestId] requestId should not be empty")
-    public String requestId;
+    protected String requestId;
 }

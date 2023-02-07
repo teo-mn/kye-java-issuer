@@ -1,21 +1,25 @@
 package io.corexchain.verifyservice.issuer.model;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.NotEmpty;
 import java.util.HashMap;
 
+@Getter
+@Setter
 public class EmployeeCardDTO {
 
     @NotEmpty(message = "[rn] Citizen registration number should not be empty")
     @Length(min = 8, max = 20)
-    public String rn;
+    protected String rn;
     @NotEmpty(message = "[pn] Phone number should not be empty")
     @Length(min = 8, max = 20)
-    public String pn;
+    protected String pn;
+    @NotEmpty(message = "[eid] Employee id should not be empty")
     @Length(min = 2, max = 50)
-    public String eid;
-    @NotEmpty(message = "[im] Image url should not be empty")
+    protected String eid;
 
     public HashMap<String, String> getPhoneRegnumMap() {
         HashMap<String, String> result = new HashMap<>();
