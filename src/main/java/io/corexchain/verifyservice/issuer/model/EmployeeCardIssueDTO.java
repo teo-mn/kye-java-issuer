@@ -19,8 +19,8 @@ public class EmployeeCardIssueDTO extends EmployeeCardDTO {
     @NotEmpty(message = "[oid] Organization should not be empty")
     @Length(min = 2, max = 50)
     protected String oid;
-    @NotEmpty(message = "[im] Image url should not be empty")
-    @Length(min = 2, max = 1000)
+//    @NotEmpty(message = "[im] Image url should not be empty")
+    @Length(max = 1000)
     protected String im;
     @NotEmpty(message = "[po] Position should not be empty")
     @Length(min = 2, max = 25)
@@ -32,9 +32,13 @@ public class EmployeeCardIssueDTO extends EmployeeCardDTO {
         result.put("ln", this.ln);
         result.put("oid", this.oid);
         result.put("rn", this.rn);
-        result.put("pn", this.pn);
+        if (this.pn != null && !"".equals(this.pn)) {
+            result.put("pn", this.pn);
+        }
         result.put("eid", this.eid);
-        result.put("im", this.im);
+        if (this.im != null && !"".equals(this.im)) {
+            result.put("im", this.im);
+        }
         result.put("po", this.po);
         return result;
     }

@@ -14,8 +14,8 @@ public class EmployeeCardDTO {
     @NotEmpty(message = "[rn] Citizen registration number should not be empty")
     @Length(min = 8, max = 20)
     protected String rn;
-    @NotEmpty(message = "[pn] Phone number should not be empty")
-    @Length(min = 8, max = 20)
+//    @NotEmpty(message = "[pn] Phone number should not be empty")
+//    @Length(min = 8, max = 20)
     protected String pn;
     @NotEmpty(message = "[eid] Employee id should not be empty")
     @Length(min = 2, max = 50)
@@ -23,7 +23,7 @@ public class EmployeeCardDTO {
 
     public HashMap<String, String> getPhoneRegnumMap() {
         HashMap<String, String> result = new HashMap<>();
-        result.put("pn", this.pn);
+//        result.put("pn", this.pn);
         result.put("rn", this.rn);
         return result;
     }
