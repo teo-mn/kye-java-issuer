@@ -47,17 +47,20 @@ public class IssuerConsumer {
                 rabbitTemplate.convertAndSend(responseQueue, result);
             } else if (EmployeeCardAction.REVOKE.equals(request.getAction())) {
                 EmployeeCardRevokeRequestDTO revokeDTO = mapper.readValue(message, EmployeeCardRevokeRequestDTO.class);
-                if(Objects.isNull(revokeDTO.getData().getRevokerName()))
+                if (Objects.isNull(revokeDTO.getData().getRevokerName()))
                     revokeDTO.getData().setRevokerName("system");
                 String result = service.revokeJson(revokeDTO);
                 rabbitTemplate.convertAndSend(responseQueue, result);
             }
         } catch (AlreadyExistsException e) {
             logger.error(e.getMessage());
-            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"Certification hash already existed in the smart contract.\", \"data\":\"" + message + "\"}");
-        } catch (SocketTimeoutException | NoSuchAlgorithmException | JsonProcessingException | BlockchainNodeException e) {
+            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"Certification hash already existed in the smart contract.\", \"data\":" + message + "}");
+        } catch (JsonProcessingException e) {
+            logger.error(e.getMessage());
+            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Error occurred during deserialization of input JSON" + "\", \"data\":" + message + "}");
+        } catch (SocketTimeoutException | NoSuchAlgorithmException | BlockchainNodeException e) {
             logger.error(e.getMessage(), e);
-            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + e.getMessage() + "\", \"data\":\"" + message + "\"}");
+            rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Unknown error occurred" + "\", \"data\":" + message + "}");
         }
     }
 }
