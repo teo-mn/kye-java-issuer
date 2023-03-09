@@ -51,6 +51,23 @@ public class IssuerConsumer {
                     revokeDTO.getData().setRevokerName("system");
                 String result = service.revokeJson(revokeDTO);
                 rabbitTemplate.convertAndSend(responseQueue, result);
+            } else if (EmployeeCardAction.UPDATE.equals(request.getAction())) {
+                EmployeeCardUpdateRequestDTO updateDTO = mapper.readValue(message, EmployeeCardUpdateRequestDTO.class);
+                EmployeeCardRevokeRequestDTO revokeDTO = new EmployeeCardRevokeRequestDTO();
+                revokeDTO.setAction(EmployeeCardAction.REVOKE);
+                revokeDTO.setRequestId(updateDTO.getRequestId());
+                revokeDTO.setData(updateDTO.getOldData());
+                if (Objects.isNull(revokeDTO.getData().getRevokerName()))
+                    revokeDTO.getData().setRevokerName("system");
+                service.revokeJson(revokeDTO);
+
+                EmployeeCardIssueRequestDTO requestIssue = new EmployeeCardIssueRequestDTO();
+                requestIssue.setAction(EmployeeCardAction.ADD);
+                requestIssue.setData(updateDTO.getNewData());
+                requestIssue.setRequestId(updateDTO.getRequestId());
+                String qr = service.issueJson(requestIssue);
+                rabbitTemplate.convertAndSend(responseQueue, qr);
+
             }
         } catch (AlreadyExistsException e) {
             logger.error(e.getMessage());

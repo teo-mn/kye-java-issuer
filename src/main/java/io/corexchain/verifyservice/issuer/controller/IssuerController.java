@@ -61,27 +61,25 @@ public class IssuerController {
     }
 
     @PutMapping
-    public ResponseEntity<String> updateJson(@Valid @RequestBody EmployeeCardIssueRequestDTO body) throws Exception {
+    public ResponseEntity<String> updateJson(@Valid @RequestBody EmployeeCardUpdateRequestDTO body) throws Exception {
         if (Objects.isNull(body)) throw new BadRequestException("Дата хоосон байж болохгүй");
 
         if (rbmqEnabled) {
             ObjectMapper mapper = new ObjectMapper();
-            body.setAction(EmployeeCardAction.REVOKE);
-            rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
-            body.setAction(EmployeeCardAction.ADD);
+            body.setAction(EmployeeCardAction.UPDATE);
             rabbitTemplate.convertAndSend(queue, mapper.writeValueAsString(body));
             return ResponseEntity.ok("{\"sc\":\""+smartContractAddress+"\"}");
         } else {
-            EmployeeCardRevokeDTO revokeDTO = new EmployeeCardRevokeDTO();
-            revokeDTO.setPn(body.getData().getPn());
-            revokeDTO.setRn(body.getData().getRn());
-            revokeDTO.setEid(body.getData().getEid());
             EmployeeCardRevokeRequestDTO request = new EmployeeCardRevokeRequestDTO();
-            request.setData(revokeDTO);
+            request.setData(body.getOldData());
             request.setRequestId(body.getRequestId());
             request.setAction(EmployeeCardAction.REVOKE);
             this.ecService.revokeJson(request);
-            String qr = this.ecService.issueJson(body);
+            EmployeeCardIssueRequestDTO requestIssue = new EmployeeCardIssueRequestDTO();
+            requestIssue.setAction(EmployeeCardAction.ADD);
+            requestIssue.setData(body.getNewData());
+            requestIssue.setRequestId(body.getRequestId());
+            String qr = this.ecService.issueJson(requestIssue);
             return ResponseEntity.ok(qr);
         }
     }
