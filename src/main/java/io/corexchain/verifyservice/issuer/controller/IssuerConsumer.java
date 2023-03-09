@@ -52,6 +52,7 @@ public class IssuerConsumer {
                 String result = service.revokeJson(revokeDTO);
                 rabbitTemplate.convertAndSend(responseQueue, result);
             } else if (EmployeeCardAction.UPDATE.equals(request.getAction())) {
+                logger.info("Update process starting...");
                 EmployeeCardUpdateRequestDTO updateDTO = mapper.readValue(message, EmployeeCardUpdateRequestDTO.class);
                 if (Objects.isNull(updateDTO.getNewData()) || Objects.isNull(updateDTO.getOldData())) {
                     rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Error occurred during deserialization of input JSON" + "\", \"data\":" + message + "}");
@@ -64,12 +65,17 @@ public class IssuerConsumer {
                     revokeDTO.getData().setRevokerName("system");
                 service.revokeJson(revokeDTO);
 
+                logger.info("Revoke success");
+
                 EmployeeCardIssueRequestDTO requestIssue = new EmployeeCardIssueRequestDTO();
                 requestIssue.setAction(EmployeeCardAction.UPDATE);
                 requestIssue.setData(updateDTO.getNewData());
                 requestIssue.setRequestId(updateDTO.getRequestId());
                 String qr = service.issueJson(requestIssue);
                 rabbitTemplate.convertAndSend(responseQueue, qr);
+
+                logger.info("Add success");
+                logger.info("Update process done.");
 
             }
         } catch (AlreadyExistsException e) {
