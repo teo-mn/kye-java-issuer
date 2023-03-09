@@ -53,6 +53,9 @@ public class IssuerConsumer {
                 rabbitTemplate.convertAndSend(responseQueue, result);
             } else if (EmployeeCardAction.UPDATE.equals(request.getAction())) {
                 EmployeeCardUpdateRequestDTO updateDTO = mapper.readValue(message, EmployeeCardUpdateRequestDTO.class);
+                if (Objects.isNull(updateDTO.getNewData()) || Objects.isNull(updateDTO.getOldData())) {
+                    rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Error occurred during deserialization of input JSON" + "\", \"data\":" + message + "}");
+                }
                 EmployeeCardRevokeRequestDTO revokeDTO = new EmployeeCardRevokeRequestDTO();
                 revokeDTO.setAction(EmployeeCardAction.REVOKE);
                 revokeDTO.setRequestId(updateDTO.getRequestId());
@@ -62,7 +65,7 @@ public class IssuerConsumer {
                 service.revokeJson(revokeDTO);
 
                 EmployeeCardIssueRequestDTO requestIssue = new EmployeeCardIssueRequestDTO();
-                requestIssue.setAction(EmployeeCardAction.ADD);
+                requestIssue.setAction(EmployeeCardAction.UPDATE);
                 requestIssue.setData(updateDTO.getNewData());
                 requestIssue.setRequestId(updateDTO.getRequestId());
                 String qr = service.issueJson(requestIssue);
@@ -75,7 +78,7 @@ public class IssuerConsumer {
         } catch (JsonProcessingException e) {
             logger.error(e.getMessage());
             rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Error occurred during deserialization of input JSON" + "\", \"data\":" + message + "}");
-        } catch (SocketTimeoutException | NoSuchAlgorithmException | BlockchainNodeException e) {
+        } catch (Exception e) {
             logger.error(e.getMessage(), e);
             rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Unknown error occurred" + "\", \"data\":" + message + "}");
         }
