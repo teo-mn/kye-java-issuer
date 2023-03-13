@@ -25,7 +25,6 @@ import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -44,10 +43,12 @@ public class EmployeeCardIssuerService {
     private String issuerPk;
     @Value("${verify.service.blockchain.node.chainId}")
     private Integer chainId;
+    @Value("${verify.service.use.personal.info}")
+    private Boolean usePersonalInfo;
 
     public String issueJson(EmployeeCardIssueRequestDTO request) throws NoSuchAlgorithmException, SocketTimeoutException {
         EmployeeCardIssueDTO data = request.getData();
-        Map<String, String> jsonMap = data.toMap();
+        Map<String, String> jsonMap = data.toMap(usePersonalInfo);
         String jsonStr = JsonUtils.jsonMapToString(jsonMap);
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
         String jsonPhoneRegnumStr = JsonUtils.jsonMapToString(data.getPhoneRegnumMap());
@@ -86,6 +87,7 @@ public class EmployeeCardIssuerService {
                     }
                     cert2 = smartContract.getCertification(childHash).send();
                     TransactionReceipt tr;
+                    // child hash олдсон бол нэмж　явуулахгүй
                     if (!cert2.isRevoked && cert2.id.compareTo(BigInteger.ZERO) != 0) {
                         tr = smartContract.addCertification(hash,
                                 certNum, BigInteger.ZERO, "v1.0-java", "").send();
