@@ -167,18 +167,17 @@ public class EmployeeCardIssuerService {
         CertificationRegistrationWithRole smartContract = this.getContractReadOnlyInstance(smartContractAddress);
         String jsonStr = JsonUtils.jsonMapToString(card.getPhoneRegnumMap());
         String hash = MerkleTree.calcHashFromStr(jsonStr, "SHA-256");
-        CertificationRegistrationWithRole.Certification cert;
         try {
             // Утас болон РД-аар child hash үүсгэсэн байгаа тул олдох ёстой
-            cert = smartContract.getCertification(hash).send();
+            BigInteger count = smartContract.getChildHashCount(hash).send();
+            if (count.compareTo(BigInteger.ZERO) == 0)
+                return false;
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             throw new BlockchainNodeException(e.getMessage());
         }
-        if (cert.id.compareTo(BigInteger.ZERO) == 0)
-            throw new NotFoundException("The HASH value is not found in blockchain.");
 
-        return !cert.isRevoked;
+        return true;
     }
 
     private CertificationRegistrationWithRole getContractInstance(String smartContractAddress) throws SocketTimeoutException {
