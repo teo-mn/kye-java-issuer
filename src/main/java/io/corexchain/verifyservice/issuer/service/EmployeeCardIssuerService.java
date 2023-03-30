@@ -5,7 +5,6 @@ import io.corexchain.verify4j.chainpoint.MerkleTree;
 import io.corexchain.verify4j.exceptions.*;
 import io.corexchain.verifyservice.issuer.model.*;
 import io.nbs.contracts.CertificationRegistrationWithRole;
-import org.apache.tomcat.util.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,12 +34,14 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
 @Service
 public class EmployeeCardIssuerService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeCardIssuerService.class);
+    private static final IvParameterSpec IV = new IvParameterSpec(new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
 
     @Value("${verify.service.blockchain.gas.price}")
     private Long gasPriceInGwei;
@@ -78,13 +79,16 @@ public class EmployeeCardIssuerService {
         // encryption
         String input = MerkleTree.calcHashFromStr(data.getRn().toLowerCase(), "SHA-256");
         input += "#" + data.getFn() + "#" + data.getLn() + "#" + data.getOid();
-        byte[] keyBytes = Base64.decodeBase64(encodedKey.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = Base64.getDecoder().decode(encodedKey.getBytes(StandardCharsets.UTF_8));
         SecretKey key = new SecretKeySpec(keyBytes, "AES");
-        IvParameterSpec ivParameterSpec = AESUtil.generateIv();
         String algorithm = "AES/CBC/PKCS5Padding";
+        IvParameterSpec ivParameterSpec = AESUtil.generateIv();
         byte[] cipherText = AESUtil.encrypt(algorithm, input, key, ivParameterSpec);
-
-        String txid = this.issueUtil(smartContract, hash, childHash, certNumHash, cipherText);
+        byte[] cipherWithIv = new byte[cipherText.length + ivParameterSpec.getIV().length];
+        System.arraycopy(ivParameterSpec.getIV(), 0, cipherWithIv, 0, ivParameterSpec.getIV().length);
+        System.arraycopy(cipherText, 0, cipherWithIv, ivParameterSpec.getIV().length, cipherText.length);
+        String txid = this.issueUtil(smartContract, hash, childHash, certNumHash, Base64.getEncoder()
+                .encodeToString(cipherWithIv));
         jsonMap.put("sc", this.contractAddress);
         jsonMap.put("txid", txid);
         String res = "";
@@ -96,7 +100,7 @@ public class EmployeeCardIssuerService {
         return res;
     }
 
-    private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum, byte[] cipherText) {
+    private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum, String cipherText) {
         try {
             BigInteger creditBalance = smartContract.getCredit(this.issuerAddress).send();
             if (creditBalance.compareTo(BigInteger.ZERO) == 0) {
@@ -115,7 +119,7 @@ public class EmployeeCardIssuerService {
                     TransactionReceipt tr;
 
                     tr = smartContract.addCertification(hash, new ArrayList<>(Collections.singleton(childHash)),
-                            certNum, BigInteger.ZERO, "v1.0-java", Base64.encodeBase64String(cipherText)).send();
+                            certNum, BigInteger.ZERO, "v1.0-java", cipherText).send();
 
                     if (!tr.isStatusOK()) {
                         throw new BlockchainNodeException("Error occurred on blockchain.");
