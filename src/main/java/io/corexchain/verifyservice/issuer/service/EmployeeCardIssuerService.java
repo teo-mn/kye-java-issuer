@@ -76,7 +76,7 @@ public class EmployeeCardIssuerService {
         CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
 
         // encryption
-        String input = MerkleTree.calcHashFromStr(data.getRn(), "SHA-256");
+        String input = MerkleTree.calcHashFromStr(data.getRn().toLowerCase(), "SHA-256");
         input += "#" + data.getFn() + "#" + data.getLn() + "#" + data.getOid();
         byte[] keyBytes = Base64.decodeBase64(encodedKey.getBytes(StandardCharsets.UTF_8));
         SecretKey key = new SecretKeySpec(keyBytes, "AES");
