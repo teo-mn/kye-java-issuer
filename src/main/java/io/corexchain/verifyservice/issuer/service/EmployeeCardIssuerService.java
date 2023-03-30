@@ -41,7 +41,6 @@ import java.util.Map;
 @Service
 public class EmployeeCardIssuerService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeCardIssuerService.class);
-    private static final IvParameterSpec IV = new IvParameterSpec(new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
 
     @Value("${verify.service.blockchain.gas.price}")
     private Long gasPriceInGwei;
