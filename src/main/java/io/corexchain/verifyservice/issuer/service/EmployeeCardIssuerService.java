@@ -5,6 +5,7 @@ import io.corexchain.verify4j.chainpoint.MerkleTree;
 import io.corexchain.verify4j.exceptions.*;
 import io.corexchain.verifyservice.issuer.model.*;
 import io.nbs.contracts.CertificationRegistrationWithRole;
+import org.apache.tomcat.util.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,10 +19,20 @@ import org.web3j.tx.RawTransactionManager;
 import org.web3j.tx.ReadonlyTransactionManager;
 import org.web3j.tx.gas.StaticGasProvider;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.validation.constraints.NotEmpty;
 import java.io.InterruptedIOException;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,8 +42,12 @@ import java.util.Map;
 public class EmployeeCardIssuerService {
     private static final Logger logger = LoggerFactory.getLogger(EmployeeCardIssuerService.class);
 
-    protected static BigInteger GAS_PRICE = BigInteger.valueOf(1000000000000L);
-    protected static BigInteger GAS_LIMIT = BigInteger.valueOf(2000000L);
+    @Value("${verify.service.blockchain.gas.price}")
+    private Long gasPriceInGwei;
+    @Value("${verify.service.blockchain.gas.limit}")
+    private Long gasLimit;
+    //    protected static BigInteger GAS_PRICE = BigInteger.valueOf(700000000000L);
+//    protected static BigInteger GAS_LIMIT = BigInteger.valueOf(2000000L);
     @Value("${verify.service.blockchain.node.url}")
     private String nodeUrl;
     @Value("${verify.service.blockchain.contract.address}")
@@ -45,8 +60,10 @@ public class EmployeeCardIssuerService {
     private Integer chainId;
     @Value("${verify.service.use.personal.info}")
     private Boolean usePersonalInfo;
+    @Value("${verify.service.encryption.secret.key}")
+    private String encodedKey;
 
-    public String issueJson(EmployeeCardIssueRequestDTO request) throws NoSuchAlgorithmException, SocketTimeoutException {
+    public String issueJson(EmployeeCardIssueRequestDTO request) throws NoSuchAlgorithmException, SocketTimeoutException, UnsupportedEncodingException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidAlgorithmParameterException, NoSuchPaddingException {
         EmployeeCardIssueDTO data = request.getData();
         Map<String, String> jsonMap = data.toMap(usePersonalInfo);
         String jsonStr = JsonUtils.jsonMapToString(jsonMap);
@@ -58,18 +75,28 @@ public class EmployeeCardIssuerService {
 
         CertificationRegistrationWithRole smartContract = this.getContractInstance(this.contractAddress);
 
-        this.issueUtil(smartContract, hash, childHash, certNumHash);
+        // encryption
+        String input = MerkleTree.calcHashFromStr(data.getRn(), "SHA-256");
+        input += "#" + data.getFn() + "#" + data.getLn() + "#" + data.getOid();
+        byte[] keyBytes = Base64.decodeBase64(encodedKey.getBytes(StandardCharsets.UTF_8));
+        SecretKey key = new SecretKeySpec(keyBytes, "AES");
+        IvParameterSpec ivParameterSpec = AESUtil.generateIv();
+        String algorithm = "AES/CBC/PKCS5Padding";
+        byte[] cipherText = AESUtil.encrypt(algorithm, input, key, ivParameterSpec);
+
+        String txid = this.issueUtil(smartContract, hash, childHash, certNumHash, cipherText);
         jsonMap.put("sc", this.contractAddress);
+        jsonMap.put("txid", txid);
         String res = "";
         res += "{";
         res += "\"requestId\": " + "\"" + request.getRequestId() + "\", ";
         res += "\"action\": " + "\"" + request.getAction() + "\", ";
-        res += "\"data\": "  + JsonUtils.jsonMapToString(jsonMap);
+        res += "\"data\": " + JsonUtils.jsonMapToString(jsonMap);
         res += "}";
         return res;
     }
 
-    private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum) {
+    private String issueUtil(CertificationRegistrationWithRole smartContract, String hash, String childHash, String certNum, byte[] cipherText) {
         try {
             BigInteger creditBalance = smartContract.getCredit(this.issuerAddress).send();
             if (creditBalance.compareTo(BigInteger.ZERO) == 0) {
@@ -85,25 +112,14 @@ public class EmployeeCardIssuerService {
                     if (!cert2.isRevoked && cert2.id.compareTo(BigInteger.ZERO) != 0) {
                         throw new AlreadyExistsException("Certification hash already existed in the smart contract.");
                     }
-                    cert2 = smartContract.getCertification(childHash).send();
                     TransactionReceipt tr;
-                    // child hash олдсон бол нэмж　явуулахгүй
-                    if (!cert2.isRevoked && cert2.id.compareTo(BigInteger.ZERO) != 0) {
-                        tr = smartContract.addCertification(hash,
-                                certNum, BigInteger.ZERO, "v1.0-java", "").send();
-                    } else {
-                        tr = smartContract.addCertification(hash,
-                                new ArrayList<>(Collections.singleton(childHash)), certNum, BigInteger.ZERO, "v1.0-java", "").send();
-                    }
+
+                    tr = smartContract.addCertification(hash, new ArrayList<>(Collections.singleton(childHash)),
+                            certNum, BigInteger.ZERO, "v1.0-java", Base64.encodeBase64String(cipherText)).send();
 
                     if (!tr.isStatusOK()) {
                         throw new BlockchainNodeException("Error occurred on blockchain.");
                     } else {
-                        try {
-                            smartContract.addTransactionId(hash, tr.getTransactionHash()).send();
-                        } catch (Exception ignored) {
-                        }
-
                         return tr.getTransactionHash();
                     }
                 }
@@ -127,7 +143,7 @@ public class EmployeeCardIssuerService {
         res += "{";
         res += "\"requestId\": " + "\"" + request.getRequestId() + "\", ";
         res += "\"action\": " + "\"" + request.getAction() + "\", ";
-        res += "\"data\": "  + jsonStr;
+        res += "\"data\": " + jsonStr;
         res += "}";
         return res;
     }
@@ -182,7 +198,8 @@ public class EmployeeCardIssuerService {
 
     private CertificationRegistrationWithRole getContractInstance(String smartContractAddress) throws SocketTimeoutException {
         Web3j web3j = Web3j.build(new HttpService(this.nodeUrl));
-        StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+        StaticGasProvider gasProvider = new StaticGasProvider(BigInteger.valueOf(this.gasPriceInGwei * (1000000000)),
+                BigInteger.valueOf(this.gasLimit));
 
         Credentials wallet = Credentials.create(issuerPk);
         RawTransactionManager transactionManager = new RawTransactionManager(web3j, wallet, this.chainId, 100, 200);
@@ -202,9 +219,9 @@ public class EmployeeCardIssuerService {
 
     private CertificationRegistrationWithRole getContractReadOnlyInstance(String smartContractAddress) {
         Web3j web3j = Web3j.build(new HttpService(this.nodeUrl));
-        StaticGasProvider gasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+        StaticGasProvider gasProvider = new StaticGasProvider(BigInteger.valueOf(this.gasPriceInGwei * (1000000000)),
+                BigInteger.valueOf(this.gasLimit));
         ReadonlyTransactionManager transactionManager = new ReadonlyTransactionManager(web3j, smartContractAddress);
-        CertificationRegistrationWithRole smartContract = CertificationRegistrationWithRole.load(smartContractAddress, web3j, transactionManager, gasProvider);
-        return smartContract;
+        return CertificationRegistrationWithRole.load(smartContractAddress, web3j, transactionManager, gasProvider);
     }
 }
