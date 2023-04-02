@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>io.corexchain</groupId>
 	<artifactId>verify-service</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>verify-service</name>
 	<description>Web service for verify mn</description>
 	<properties>
