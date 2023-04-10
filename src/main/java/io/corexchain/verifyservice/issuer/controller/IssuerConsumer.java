@@ -42,17 +42,20 @@ public class IssuerConsumer {
         EmployeeCardRequestDTO request = null;
         try {
             request = mapper.readValue(message, EmployeeCardRequestDTO.class);
+            logger.info("[" + request.getRequestId()+  "]" + " New request: Action: " + request.getAction());
             if (EmployeeCardAction.ADD.equals(request.getAction())) {
                 String result = service.issueJson(mapper.readValue(message, EmployeeCardIssueRequestDTO.class));
                 rabbitTemplate.convertAndSend(responseQueue, result);
+                logger.info("[" + request.getRequestId()+  "]" + " Issue success");
             } else if (EmployeeCardAction.REVOKE.equals(request.getAction())) {
                 EmployeeCardRevokeRequestDTO revokeDTO = mapper.readValue(message, EmployeeCardRevokeRequestDTO.class);
                 if (Objects.isNull(revokeDTO.getData().getRevokerName()))
                     revokeDTO.getData().setRevokerName("system");
                 String result = service.revokeJson(revokeDTO);
                 rabbitTemplate.convertAndSend(responseQueue, result);
+                logger.info("[" + request.getRequestId()+  "]" + " Revoke success");
             } else if (EmployeeCardAction.UPDATE.equals(request.getAction())) {
-                logger.info("Update process starting...");
+                logger.info("[" + request.getRequestId()+  "]" + " Update process starting...");
                 EmployeeCardUpdateRequestDTO updateDTO = mapper.readValue(message, EmployeeCardUpdateRequestDTO.class);
                 if (Objects.isNull(updateDTO.getNewData()) || Objects.isNull(updateDTO.getOldData())) {
                     rabbitTemplate.convertAndSend(responseQueue, "{\"error\": \"" + "Error occurred during deserialization of input JSON" + "\", \"data\":" + message + "}");
@@ -65,7 +68,7 @@ public class IssuerConsumer {
                     revokeDTO.getData().setRevokerName("system");
                 service.revokeJson(revokeDTO);
 
-                logger.info("Revoke success");
+                logger.info("[" + request.getRequestId()+  "]" + " Revoke success");
 
                 EmployeeCardIssueRequestDTO requestIssue = new EmployeeCardIssueRequestDTO();
                 requestIssue.setAction(EmployeeCardAction.UPDATE);
@@ -74,8 +77,8 @@ public class IssuerConsumer {
                 String qr = service.issueJson(requestIssue);
                 rabbitTemplate.convertAndSend(responseQueue, qr);
 
-                logger.info("Add success");
-                logger.info("Update process done.");
+                logger.info("[" + request.getRequestId()+  "]" + " Add success");
+                logger.info("[" + request.getRequestId()+  "]" + " Update process done.");
 
             }
         } catch (AlreadyExistsException e) {
